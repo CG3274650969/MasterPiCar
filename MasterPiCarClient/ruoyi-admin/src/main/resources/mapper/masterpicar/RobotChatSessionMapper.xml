@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.masterpicar.mapper.RobotChatSessionMapper">
+    
+    <resultMap type="RobotChatSession" id="RobotChatSessionResult">
+        <result property="sessionId"    column="session_id"    />
+        <result property="userId"    column="user_id"    />
+        <result property="deviceId"    column="device_id"    />
+        <result property="sessionTitle"    column="session_title"    />
+        <result property="status"    column="status"    />
+        <result property="createTime"    column="create_time"    />
+    </resultMap>
+
+    <resultMap id="RobotChatSessionRobotDeviceResult" type="RobotChatSession" extends="RobotChatSessionResult">
+        <collection property="robotDeviceList" ofType="RobotDevice" column="session_id" select="selectRobotDeviceList" />
+    </resultMap>
+
+    <resultMap type="RobotDevice" id="RobotDeviceResult">
+        <result property="deviceId"    column="device_id"    />
+        <result property="deviceName"    column="device_name"    />
+        <result property="deviceSn"    column="device_sn"    />
+        <result property="ipAddress"    column="ip_address"    />
+        <result property="onlineStatus"    column="online_status"    />
+        <result property="lastOnlineTime"    column="last_online_time"    />
+        <result property="remark"    column="remark"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectRobotChatSessionVo">
+        select session_id, user_id, device_id, session_title, status, create_time from robot_chat_session
+    </sql>
+
+    <select id="selectRobotChatSessionList" parameterType="RobotChatSession" resultMap="RobotChatSessionResult">
+        <include refid="selectRobotChatSessionVo"/>
+        <where>  
+            <if test="userId != null "> and user_id = #{userId}</if>
+            <if test="deviceId != null "> and device_id = #{deviceId}</if>
+            <if test="sessionTitle != null  and sessionTitle != ''"> and session_title = #{sessionTitle}</if>
+            <if test="status != null  and status != ''"> and status = #{status}</if>
+        </where>
+    </select>
+    
+    <select id="selectRobotChatSessionBySessionId" parameterType="Long" resultMap="RobotChatSessionRobotDeviceResult">
+        select session_id, user_id, device_id, session_title, status, create_time
+        from robot_chat_session
+        where session_id = #{sessionId}
+    </select>
+
+    <select id="selectRobotDeviceList" resultMap="RobotDeviceResult">
+        select device_id, device_name, device_sn, ip_address, online_status, last_online_time, remark, create_time, update_time
+        from robot_device
+        where device_name = #{device_name}
+    </select>
+
+    <insert id="insertRobotChatSession" parameterType="RobotChatSession" useGeneratedKeys="true" keyProperty="sessionId">
+        insert into robot_chat_session
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userId != null">user_id,</if>
+            <if test="deviceId != null">device_id,</if>
+            <if test="sessionTitle != null">session_title,</if>
+            <if test="status != null">status,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userId != null">#{userId},</if>
+            <if test="deviceId != null">#{deviceId},</if>
+            <if test="sessionTitle != null">#{sessionTitle},</if>
+            <if test="status != null">#{status},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateRobotChatSession" parameterType="RobotChatSession">
+        update robot_chat_session
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="deviceId != null">device_id = #{deviceId},</if>
+            <if test="sessionTitle != null">session_title = #{sessionTitle},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+        </trim>
+        where session_id = #{sessionId}
+    </update>
+
+    <delete id="deleteRobotChatSessionBySessionId" parameterType="Long">
+        delete from robot_chat_session where session_id = #{sessionId}
+    </delete>
+
+    <delete id="deleteRobotChatSessionBySessionIds" parameterType="String">
+        delete from robot_chat_session where session_id in 
+        <foreach item="sessionId" collection="array" open="(" separator="," close=")">
+            #{sessionId}
+        </foreach>
+    </delete>
+    
+    <delete id="deleteRobotDeviceByDeviceNames" parameterType="String">
+        delete from robot_device where device_name in 
+        <foreach item="deviceName" collection="array" open="(" separator="," close=")">
+            #{deviceName}
+        </foreach>
+    </delete>
+
+    <delete id="deleteRobotDeviceByDeviceName" parameterType="Long">
+        delete from robot_device where device_name = #{deviceName}
+    </delete>
+
+    <insert id="batchRobotDevice">
+        insert into robot_device( device_id, device_name, device_sn, ip_address, online_status, last_online_time, remark, create_time, update_time) values
+        <foreach item="item" index="index" collection="list" separator=",">
+            ( #{item.deviceId}, #{item.deviceName}, #{item.deviceSn}, #{item.ipAddress}, #{item.onlineStatus}, #{item.lastOnlineTime}, #{item.remark}, #{item.createTime}, #{item.updateTime})
+        </foreach>
+    </insert>
+</mapper>

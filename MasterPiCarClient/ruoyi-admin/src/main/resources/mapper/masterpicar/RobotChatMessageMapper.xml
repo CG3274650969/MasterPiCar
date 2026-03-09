@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.masterpicar.mapper.RobotChatMessageMapper">
+    
+    <resultMap type="RobotChatMessage" id="RobotChatMessageResult">
+        <result property="messageId"    column="message_id"    />
+        <result property="sessionId"    column="session_id"    />
+        <result property="role"    column="role"    />
+        <result property="content"    column="content"    />
+        <result property="commandJson"    column="command_json"    />
+        <result property="messageType"    column="message_type"    />
+        <result property="createTime"    column="create_time"    />
+    </resultMap>
+
+    <resultMap id="RobotChatMessageRobotDeviceResult" type="RobotChatMessage" extends="RobotChatMessageResult">
+        <collection property="robotDeviceList" ofType="RobotDevice" column="message_id" select="selectRobotDeviceList" />
+    </resultMap>
+
+    <resultMap type="RobotDevice" id="RobotDeviceResult">
+        <result property="deviceId"    column="device_id"    />
+        <result property="deviceName"    column="device_name"    />
+        <result property="deviceSn"    column="device_sn"    />
+        <result property="ipAddress"    column="ip_address"    />
+        <result property="onlineStatus"    column="online_status"    />
+        <result property="lastOnlineTime"    column="last_online_time"    />
+        <result property="remark"    column="remark"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectRobotChatMessageVo">
+        select message_id, session_id, role, content, command_json, message_type, create_time from robot_chat_message
+    </sql>
+
+    <select id="selectRobotChatMessageList" parameterType="RobotChatMessage" resultMap="RobotChatMessageResult">
+        <include refid="selectRobotChatMessageVo"/>
+        <where>  
+            <if test="sessionId != null "> and session_id = #{sessionId}</if>
+            <if test="role != null  and role != ''"> and role = #{role}</if>
+            <if test="content != null  and content != ''"> and content = #{content}</if>
+            <if test="commandJson != null  and commandJson != ''"> and command_json = #{commandJson}</if>
+            <if test="messageType != null  and messageType != ''"> and message_type = #{messageType}</if>
+        </where>
+    </select>
+    
+    <select id="selectRobotChatMessageByMessageId" parameterType="Long" resultMap="RobotChatMessageRobotDeviceResult">
+        select message_id, session_id, role, content, command_json, message_type, create_time
+        from robot_chat_message
+        where message_id = #{messageId}
+    </select>
+
+    <select id="selectRobotDeviceList" resultMap="RobotDeviceResult">
+        select device_id, device_name, device_sn, ip_address, online_status, last_online_time, remark, create_time, update_time
+        from robot_device
+        where device_name = #{device_name}
+    </select>
+
+    <insert id="insertRobotChatMessage" parameterType="RobotChatMessage" useGeneratedKeys="true" keyProperty="messageId">
+        insert into robot_chat_message
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="sessionId != null">session_id,</if>
+            <if test="role != null and role != ''">role,</if>
+            <if test="content != null and content != ''">content,</if>
+            <if test="commandJson != null">command_json,</if>
+            <if test="messageType != null">message_type,</if>
+            <if test="createTime != null">create_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="sessionId != null">#{sessionId},</if>
+            <if test="role != null and role != ''">#{role},</if>
+            <if test="content != null and content != ''">#{content},</if>
+            <if test="commandJson != null">#{commandJson},</if>
+            <if test="messageType != null">#{messageType},</if>
+            <if test="createTime != null">#{createTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateRobotChatMessage" parameterType="RobotChatMessage">
+        update robot_chat_message
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="sessionId != null">session_id = #{sessionId},</if>
+            <if test="role != null and role != ''">role = #{role},</if>
+            <if test="content != null and content != ''">content = #{content},</if>
+            <if test="commandJson != null">command_json = #{commandJson},</if>
+            <if test="messageType != null">message_type = #{messageType},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+        </trim>
+        where message_id = #{messageId}
+    </update>
+
+    <delete id="deleteRobotChatMessageByMessageId" parameterType="Long">
+        delete from robot_chat_message where message_id = #{messageId}
+    </delete>
+
+    <delete id="deleteRobotChatMessageByMessageIds" parameterType="String">
+        delete from robot_chat_message where message_id in 
+        <foreach item="messageId" collection="array" open="(" separator="," close=")">
+            #{messageId}
+        </foreach>
+    </delete>
+    
+    <delete id="deleteRobotDeviceByDeviceNames" parameterType="String">
+        delete from robot_device where device_name in 
+        <foreach item="deviceName" collection="array" open="(" separator="," close=")">
+            #{deviceName}
+        </foreach>
+    </delete>
+
+    <delete id="deleteRobotDeviceByDeviceName" parameterType="Long">
+        delete from robot_device where device_name = #{deviceName}
+    </delete>
+
+    <insert id="batchRobotDevice">
+        insert into robot_device( device_id, device_name, device_sn, ip_address, online_status, last_online_time, remark, create_time, update_time) values
+        <foreach item="item" index="index" collection="list" separator=",">
+            ( #{item.deviceId}, #{item.deviceName}, #{item.deviceSn}, #{item.ipAddress}, #{item.onlineStatus}, #{item.lastOnlineTime}, #{item.remark}, #{item.createTime}, #{item.updateTime})
+        </foreach>
+    </insert>
+</mapper>

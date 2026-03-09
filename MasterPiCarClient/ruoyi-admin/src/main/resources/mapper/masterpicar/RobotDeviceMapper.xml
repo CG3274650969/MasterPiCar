@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.masterpicar.mapper.RobotDeviceMapper">
+    
+    <resultMap type="RobotDevice" id="RobotDeviceResult">
+        <result property="deviceId"    column="device_id"    />
+        <result property="deviceName"    column="device_name"    />
+        <result property="deviceSn"    column="device_sn"    />
+        <result property="ipAddress"    column="ip_address"    />
+        <result property="onlineStatus"    column="online_status"    />
+        <result property="lastOnlineTime"    column="last_online_time"    />
+        <result property="remark"    column="remark"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectRobotDeviceVo">
+        select device_id, device_name, device_sn, ip_address, online_status, last_online_time, remark, create_time, update_time from robot_device
+    </sql>
+
+    <select id="selectRobotDeviceList" parameterType="RobotDevice" resultMap="RobotDeviceResult">
+        <include refid="selectRobotDeviceVo"/>
+        <where>  
+            <if test="deviceId != null "> and device_id = #{deviceId}</if>
+            <if test="deviceName != null  and deviceName != ''"> and device_name like concat('%', #{deviceName}, '%')</if>
+            <if test="deviceSn != null  and deviceSn != ''"> and device_sn = #{deviceSn}</if>
+            <if test="ipAddress != null  and ipAddress != ''"> and ip_address = #{ipAddress}</if>
+            <if test="onlineStatus != null  and onlineStatus != ''"> and online_status = #{onlineStatus}</if>
+        </where>
+    </select>
+    
+    <select id="selectRobotDeviceByDeviceId" parameterType="Long" resultMap="RobotDeviceResult">
+        <include refid="selectRobotDeviceVo"/>
+        where device_id = #{deviceId}
+    </select>
+
+    <insert id="insertRobotDevice" parameterType="RobotDevice" useGeneratedKeys="true" keyProperty="deviceId">
+        insert into robot_device
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="deviceName != null and deviceName != ''">device_name,</if>
+            <if test="deviceSn != null and deviceSn != ''">device_sn,</if>
+            <if test="ipAddress != null">ip_address,</if>
+            <if test="onlineStatus != null">online_status,</if>
+            <if test="lastOnlineTime != null">last_online_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="deviceName != null and deviceName != ''">#{deviceName},</if>
+            <if test="deviceSn != null and deviceSn != ''">#{deviceSn},</if>
+            <if test="ipAddress != null">#{ipAddress},</if>
+            <if test="onlineStatus != null">#{onlineStatus},</if>
+            <if test="lastOnlineTime != null">#{lastOnlineTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateRobotDevice" parameterType="RobotDevice">
+        update robot_device
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="deviceName != null and deviceName != ''">device_name = #{deviceName},</if>
+            <if test="deviceSn != null and deviceSn != ''">device_sn = #{deviceSn},</if>
+            <if test="ipAddress != null">ip_address = #{ipAddress},</if>
+            <if test="onlineStatus != null">online_status = #{onlineStatus},</if>
+            <if test="lastOnlineTime != null">last_online_time = #{lastOnlineTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where device_id = #{deviceId}
+    </update>
+
+    <update id="updateAllOffline">
+        update robot_device
+        set online_status = '0'
+    </update>
+
+    <delete id="deleteRobotDeviceByDeviceId" parameterType="Long">
+        delete from robot_device where device_id = #{deviceId}
+    </delete>
+
+    <delete id="deleteRobotDeviceByDeviceIds" parameterType="String">
+        delete from robot_device where device_id in 
+        <foreach item="deviceId" collection="array" open="(" separator="," close=")">
+            #{deviceId}
+        </foreach>
+    </delete>
+</mapper>

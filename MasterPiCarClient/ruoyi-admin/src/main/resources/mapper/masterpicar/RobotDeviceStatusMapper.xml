@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.masterpicar.mapper.RobotDeviceStatusMapper">
+    
+    <resultMap type="RobotDeviceStatus" id="RobotDeviceStatusResult">
+        <result property="statusId"    column="status_id"    />
+        <result property="deviceId"    column="device_id"    />
+        <result property="cpuUsage"    column="cpu_usage"    />
+        <result property="memoryUsage"    column="memory_usage"    />
+        <result property="batteryLevel"    column="battery_level"    />
+        <result property="temperature"    column="temperature"    />
+        <result property="reportTime"    column="report_time"    />
+    </resultMap>
+
+    <resultMap id="RobotDeviceStatusRobotDeviceResult" type="RobotDeviceStatus" extends="RobotDeviceStatusResult">
+        <collection property="robotDeviceList" ofType="RobotDevice" column="status_id" select="selectRobotDeviceList" />
+    </resultMap>
+
+    <resultMap type="RobotDevice" id="RobotDeviceResult">
+        <result property="deviceId"    column="device_id"    />
+        <result property="deviceName"    column="device_name"    />
+        <result property="deviceSn"    column="device_sn"    />
+        <result property="ipAddress"    column="ip_address"    />
+        <result property="onlineStatus"    column="online_status"    />
+        <result property="lastOnlineTime"    column="last_online_time"    />
+        <result property="remark"    column="remark"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectRobotDeviceStatusVo">
+        select status_id, device_id, cpu_usage, memory_usage, battery_level, temperature, report_time from robot_device_status
+    </sql>
+
+    <select id="selectRobotDeviceStatusList" parameterType="RobotDeviceStatus" resultMap="RobotDeviceStatusResult">
+        <include refid="selectRobotDeviceStatusVo"/>
+        <where>  
+            <if test="deviceId != null "> and device_id = #{deviceId}</if>
+            <if test="cpuUsage != null "> and cpu_usage = #{cpuUsage}</if>
+            <if test="memoryUsage != null "> and memory_usage = #{memoryUsage}</if>
+            <if test="batteryLevel != null "> and battery_level = #{batteryLevel}</if>
+            <if test="temperature != null "> and temperature = #{temperature}</if>
+            <if test="reportTime != null "> and report_time = #{reportTime}</if>
+        </where>
+    </select>
+    
+    <select id="selectRobotDeviceStatusByStatusId" parameterType="Long" resultMap="RobotDeviceStatusRobotDeviceResult">
+        select status_id, device_id, cpu_usage, memory_usage, battery_level, temperature, report_time
+        from robot_device_status
+        where status_id = #{statusId}
+    </select>
+
+    <select id="selectRobotDeviceList" resultMap="RobotDeviceResult">
+        select device_id, device_name, device_sn, ip_address, online_status, last_online_time, remark, create_time, update_time
+        from robot_device
+        where device_name = #{device_name}
+    </select>
+
+    <insert id="insertRobotDeviceStatus" parameterType="RobotDeviceStatus" useGeneratedKeys="true" keyProperty="statusId">
+        insert into robot_device_status
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="deviceId != null">device_id,</if>
+            <if test="cpuUsage != null">cpu_usage,</if>
+            <if test="memoryUsage != null">memory_usage,</if>
+            <if test="batteryLevel != null">battery_level,</if>
+            <if test="temperature != null">temperature,</if>
+            <if test="reportTime != null">report_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="deviceId != null">#{deviceId},</if>
+            <if test="cpuUsage != null">#{cpuUsage},</if>
+            <if test="memoryUsage != null">#{memoryUsage},</if>
+            <if test="batteryLevel != null">#{batteryLevel},</if>
+            <if test="temperature != null">#{temperature},</if>
+            <if test="reportTime != null">#{reportTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateRobotDeviceStatus" parameterType="RobotDeviceStatus">
+        update robot_device_status
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="deviceId != null">device_id = #{deviceId},</if>
+            <if test="cpuUsage != null">cpu_usage = #{cpuUsage},</if>
+            <if test="memoryUsage != null">memory_usage = #{memoryUsage},</if>
+            <if test="batteryLevel != null">battery_level = #{batteryLevel},</if>
+            <if test="temperature != null">temperature = #{temperature},</if>
+            <if test="reportTime != null">report_time = #{reportTime},</if>
+        </trim>
+        where status_id = #{statusId}
+    </update>
+
+    <delete id="deleteRobotDeviceStatusByStatusId" parameterType="Long">
+        delete from robot_device_status where status_id = #{statusId}
+    </delete>
+
+    <delete id="deleteRobotDeviceStatusByStatusIds" parameterType="String">
+        delete from robot_device_status where status_id in 
+        <foreach item="statusId" collection="array" open="(" separator="," close=")">
+            #{statusId}
+        </foreach>
+    </delete>
+    
+    <delete id="deleteRobotDeviceByDeviceNames" parameterType="String">
+        delete from robot_device where device_name in 
+        <foreach item="deviceName" collection="array" open="(" separator="," close=")">
+            #{deviceName}
+        </foreach>
+    </delete>
+
+    <delete id="deleteRobotDeviceByDeviceName" parameterType="Long">
+        delete from robot_device where device_name = #{deviceName}
+    </delete>
+
+    <insert id="batchRobotDevice">
+        insert into robot_device( device_id, device_name, device_sn, ip_address, online_status, last_online_time, remark, create_time, update_time) values
+        <foreach item="item" index="index" collection="list" separator=",">
+            ( #{item.deviceId}, #{item.deviceName}, #{item.deviceSn}, #{item.ipAddress}, #{item.onlineStatus}, #{item.lastOnlineTime}, #{item.remark}, #{item.createTime}, #{item.updateTime})
+        </foreach>
+    </insert>
+</mapper>
