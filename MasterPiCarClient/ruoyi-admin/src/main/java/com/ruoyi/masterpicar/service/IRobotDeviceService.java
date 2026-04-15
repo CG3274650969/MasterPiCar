@@ -60,4 +60,6 @@ public interface IRobotDeviceService
     public int deleteRobotDeviceByDeviceId(Long deviceId);
 
     int setDeviceOnline(Long deviceId);
+
+//    RobotDevice selectRobotDeviceByDeviceId(Long deviceId);
 }

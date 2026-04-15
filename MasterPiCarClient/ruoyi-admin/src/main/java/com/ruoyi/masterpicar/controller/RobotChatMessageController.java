@@ -193,24 +193,31 @@ public class RobotChatMessageController extends BaseController {
     @RequestMapping("/masterpicar/device")
     public static class RobotDeviceController extends BaseController {
 
+        private static final org.slf4j.Logger log =
+                org.slf4j.LoggerFactory.getLogger(RobotDeviceController.class);
+
         @Autowired
         private MqttConfig.MqttGateway mqttGateway;
 
-        @Anonymous // 开发阶段建议先开启匿名，生产环境用 @PreAuthorize
+        @Anonymous
         @PostMapping("/execute")
         public AjaxResult execute(@RequestBody RobotControlDto controlDto) {
             try {
                 // 1. 将指令列表转为 JSON 字符串
                 String payload = JSON.toJSONString(controlDto.getActions());
 
-                // 2. 定义主题，例如：picar/control/1
+                // 2. 主题格式与 Python masterpi_connect.py 的订阅 picar/control/# 对应
                 String topic = "picar/control/" + controlDto.getDeviceId();
 
-                // 3. 通过 MQTT 发送给树莓派
+                // 3. 输出日志：显示即将下发的 JSON 指令
+                log.info("AI 控制指令下发 → Topic: {}  JSON: {}", topic, payload);
+
+                // 4. 通过 MQTT 发送给树莓派
                 mqttGateway.sendToMqtt(payload, topic);
 
                 return success("指令已下发至 MQTT Topic: " + topic);
             } catch (Exception e) {
+                log.error("✖ 指令下发失败: {}", e.getMessage(), e);
                 return error("指令下发失败: " + e.getMessage());
             }
         }

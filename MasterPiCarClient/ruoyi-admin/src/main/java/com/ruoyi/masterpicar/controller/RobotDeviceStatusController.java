@@ -1,6 +1,7 @@
 package com.ruoyi.masterpicar.controller;
 
 import java.util.List;
+import java.util.Map;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -100,5 +101,24 @@ public class RobotDeviceStatusController extends BaseController
     public AjaxResult remove(@PathVariable Long[] statusIds)
     {
         return toAjax(robotDeviceStatusService.deleteRobotDeviceStatusByStatusIds(statusIds));
+    }
+
+//    @PostMapping("/connect-ssh")
+//    public AjaxResult connectSsh(@RequestBody Map<String, Object> params) {
+//        Long deviceId = Long.valueOf(params.get("deviceId").toString());
+//        String password = (String) params.get("password");
+//
+//        // 调用业务层执行 SSH 任务
+//        return toAjax(robotDeviceStatusService.connectAndRefreshStatus(deviceId, password));
+//    }
+
+    @PostMapping("/connect-ssh")
+    public AjaxResult connectSsh(@RequestBody Map<String, Object> params) {
+        Long deviceId = Long.valueOf(params.get("deviceId").toString());
+        String username = params.get("username").toString(); // 获取前端输入的用户名
+        String password = params.get("password").toString(); // 获取前端输入的密码
+
+        int rows = robotDeviceStatusService.connectAndRefreshStatus(deviceId, username, password);
+        return toAjax(rows);
     }
 }

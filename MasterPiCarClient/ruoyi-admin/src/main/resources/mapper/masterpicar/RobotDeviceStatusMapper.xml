@@ -119,4 +119,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             ( #{item.deviceId}, #{item.deviceName}, #{item.deviceSn}, #{item.ipAddress}, #{item.onlineStatus}, #{item.lastOnlineTime}, #{item.remark}, #{item.createTime}, #{item.updateTime})
         </foreach>
     </insert>
+
+    <select id="selectRobotDeviceStatusByDeviceId" parameterType="Long" resultMap="RobotDeviceStatusResult">
+        <include refid="selectRobotDeviceStatusVo"/>
+        where device_id = #{deviceId}
+        limit 1
+    </select>
 </mapper>

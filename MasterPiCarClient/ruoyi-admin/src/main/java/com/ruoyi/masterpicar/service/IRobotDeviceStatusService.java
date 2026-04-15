@@ -58,4 +58,6 @@ public interface IRobotDeviceStatusService
      * @return 结果
      */
     public int deleteRobotDeviceStatusByStatusId(Long statusId);
+
+    int connectAndRefreshStatus(Long deviceId,String username, String password);
 }

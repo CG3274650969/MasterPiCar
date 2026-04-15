@@ -84,4 +84,9 @@ public interface RobotDeviceStatusMapper
      * @return 结果
      */
     public int deleteRobotDeviceByDeviceName(Long statusId);
+
+    /**
+     * 根据设备ID查询最新状态记录
+     */
+    public RobotDeviceStatus selectRobotDeviceStatusByDeviceId(Long deviceId);
 }

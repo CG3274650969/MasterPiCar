@@ -20,6 +20,38 @@
         </el-select>
       </div>
 
+      <el-dialog title="设备身份验证" :visible.sync="loginDialogVisible" width="350px" append-to-body>
+        <el-form label-width="70px" size="small">
+          <el-form-item label="用户名">
+            <el-input v-model="loginForm.username" placeholder="请输入用户名 (如: pi)"></el-input>
+          </el-form-item>
+          <el-form-item label="密码">
+            <el-input v-model="loginForm.password" type="password" show-password placeholder="请输入密码"></el-input>
+          </el-form-item>
+          <el-form-item>
+            <el-checkbox v-model="loginForm.remember">记住密码</el-checkbox>
+          </el-form-item>
+        </el-form>
+        <div slot="footer" class="dialog-footer">
+          <el-button @click="loginDialogVisible = false" size="small">取 消</el-button>
+          <el-button type="primary" @click="confirmLogin" size="small" :loading="connecting">连 接</el-button>
+        </div>
+      </el-dialog>
+
+      <!-- 视频显示区域 -->
+      <div class="video-container" v-if="videoActive">
+        <img
+          :src="videoStreamUrl"
+          class="video-stream"
+          @load="videoLoading = false"
+          @error="onVideoError"
+        />
+        <div class="video-overlay" v-if="videoLoading">
+          <i class="el-icon-loading"></i> 连接中...
+        </div>
+      </div>
+
+
       <!-- 聊天消息列表 -->
       <div class="chat-messages" ref="chatBox">
         <div
@@ -79,15 +111,34 @@ export default {
       model: "spark-x",
       messages: [],
       source: null,
-
-      // 🔽 新增
       deviceList: [],
       currentDeviceId: null,
-      sessionId: null
+      sessionId: null,
+
+      loginDialogVisible: false,
+      connecting: false,
+      loginForm: {
+        username: 'pi',
+        password: '',
+        remember: true
+      },
+      // 存储所有设备的记住密码信息 { deviceId: { username, password } }
+      savedCredentials: {},
+
+      // 视频相关
+      videoActive: false,
+      videoStreamUrl: "",
+      videoLoading: false
+
     };
   },
   created() {
     this.loadDeviceList();
+    // 页面加载时读取本地存储的凭证
+    const localData = localStorage.getItem('picar_credentials');
+    if (localData) {
+      this.savedCredentials = JSON.parse(localData);
+    }
   },
   methods: {
     /** 获取设备列表 */
@@ -100,17 +151,84 @@ export default {
       });
     },
 
-    /** 选择设备 → 设置在线 */
-    // handleDeviceChange(deviceId) {
-    //   request({
-    //     url: `/masterpicar/device/online/${deviceId}`,
-    //     method: "post"
-    //   }).then(() => {
-    //     this.$message.success("设备已上线");
-    //   });
-    // },
-
+    /** 切换设备逻辑 */
     handleDeviceChange(deviceId) {
+      const device = this.deviceList.find(item => item.deviceId === deviceId);
+      if (!device) return;
+
+      // 检查该设备是否有保存的凭证
+      const saved = this.savedCredentials[deviceId];
+
+      if (device.ipAddress === '10.107.93.135') {
+        if (saved) {
+          // 如果有保存的凭证，直接执行连接，不弹窗
+          console.log("使用保存的凭证自动连接...");
+          this.initLocalConnection(deviceId, saved.username, saved.password);
+        } else {
+          // 否则弹出登录框
+          this.loginForm.password = ''; // 清空密码框
+          this.loginDialogVisible = true;
+        }
+      } else {
+        this.startNormalSession(deviceId);
+      }
+    },
+
+    /** 弹窗点击确认连接 */
+    confirmLogin() {
+      if (!this.loginForm.password) {
+        this.$message.warning("请输入密码");
+        return;
+      }
+      this.connecting = true;
+      this.initLocalConnection(this.currentDeviceId, this.loginForm.username, this.loginForm.password);
+    },
+
+    /** 弹窗点击确认连接 */
+    confirmLogin() {
+      if (!this.loginForm.password) {
+        this.$message.warning("请输入密码");
+        return;
+      }
+      this.connecting = true;
+      this.initLocalConnection(this.currentDeviceId, this.loginForm.username, this.loginForm.password);
+    },
+
+    /** 执行 SSH 连接 */
+    initLocalConnection(deviceId, username, password) {
+      request({
+        url: "/masterpicar/status/connect-ssh",
+        method: "post",
+        data: { deviceId, username, password }
+      }).then(res => {
+        this.$message.success("SSH 连接成功");
+
+        // 处理记住密码逻辑
+        if (this.loginForm.remember) {
+          this.savedCredentials[deviceId] = { username, password };
+          localStorage.setItem('picar_credentials', JSON.stringify(this.savedCredentials));
+        } else {
+          // 如果没勾选，确保清除旧的
+          delete this.savedCredentials[deviceId];
+          localStorage.setItem('picar_credentials', JSON.stringify(this.savedCredentials));
+        }
+
+        this.loginDialogVisible = false;
+        this.startNormalSession(deviceId);
+      }).catch(err => {
+        this.$message.error("连接失败: " + err.message);
+        // 如果连接失败且是自动登录，可能密码改了，清除保存的凭据并弹窗
+        if (this.savedCredentials[deviceId]) {
+          delete this.savedCredentials[deviceId];
+          localStorage.setItem('picar_credentials', JSON.stringify(this.savedCredentials));
+          this.loginDialogVisible = true;
+        }
+      }).finally(() => {
+        this.connecting = false;
+      });
+    },
+
+    startNormalSession(deviceId) {
       request({
         url: `/masterpicar/device/online/${deviceId}`,
         method: "post"
@@ -118,68 +236,31 @@ export default {
         return request({
           url: "/masterpicar/session/start",
           method: "post",
-          data: {
-            deviceId,
-            model: this.model
-          }
+          data: { deviceId, model: this.model }
         });
       }).then(res => {
         this.sessionId = res.data.sessionId;
-        this.$message.success("设备已上线，会话已创建");
+        this.$message.success("设备已上线");
       });
     },
 
-    // send() {
-    //   if (!this.input) return;
+    // handleDeviceChange(deviceId) {
+    //   const device = this.deviceList.find(item => item.deviceId === deviceId);
     //
-    //   const now = new Date();
-    //   const formatTime = `${now.getHours()}:${now.getMinutes().toString().padStart(2, "0")}`;
-    //
-    //   // 显示用户消息
-    //   this.messages.push({
-    //     role: "user",
-    //     content: this.input,
-    //     time: formatTime
-    //   });
-    //
-    //   const userMsg = this.input;
-    //   this.input = "";
-    //
-    //   // 显示助手占位
-    //   const assistantMsg = {
-    //     role: "assistant",
-    //     content: "",
-    //     time: formatTime,
-    //     isTyping: true
-    //   };
-    //   this.messages.push(assistantMsg);
-    //   this.$nextTick(this.scrollBottom);
-    //
-    //   if (!this.sessionId) {
-    //     this.$message.error("请先选择设备并创建会话！");
-    //     return;
+    //   if (device && device.ipAddress === '10.107.93.135') { // 这里建议判断具体IP或标识
+    //     this.$prompt('请输入 SSH 密码 (用户: pi)', '身份验证', {
+    //       confirmButtonText: '连接',
+    //       cancelButtonText: '取消',
+    //       inputType: 'password'
+    //     }).then(({ value }) => {
+    //       // 修正：增加 'pi' 作为 username 参数
+    //       this.initLocalConnection(deviceId, 'pi', value);
+    //     }).catch(() => {
+    //       this.$message.info('已取消连接');
+    //     });
+    //   } else {
+    //     this.startNormalSession(deviceId);
     //   }
-    //
-    //   // 调用后端统一保存消息并获取助手回复
-    //   request({
-    //     url: "/masterpicar/message/save",
-    //     method: "post",
-    //     data: {
-    //       sessionId: this.sessionId,
-    //       role: "user",
-    //       content: userMsg
-    //     }
-    //   }).then(res => {
-    //     // 后端返回助手消息
-    //     const reply = res.data; // {role: 'assistant', content: '...', sessionId: ...}
-    //     assistantMsg.isTyping = false;
-    //     assistantMsg.content = reply.content;
-    //     this.$nextTick(this.scrollBottom);
-    //   }).catch(err => {
-    //     assistantMsg.isTyping = false;
-    //     assistantMsg.content = "[回复失败]";
-    //     this.$nextTick(this.scrollBottom);
-    //   });
     // },
 
     send() {
@@ -217,28 +298,31 @@ export default {
         if (e.data === "[DONE]") {
           es.close();
 
-          // --- 关键步骤：提取并执行硬件指令 ---
           const fullContent = assistantMsg.content;
-          // 正则匹配 [ACTION_START] ... [ACTION_END]
           const actionRegex = /\[ACTION_START\](.*?)\[ACTION_END\]/s;
           const match = fullContent.match(actionRegex);
 
-          if (match && match[1]) {
+          // --- 核心改进：只有匹配到指令且指令不为空才下发 ---
+          if (match && match[1] && match[1].trim() !== "" && match[1].trim() !== "[]") {
             try {
               const commands = JSON.parse(match[1].trim());
               console.log("检测到硬件指令:", commands);
 
-              // a. 将指令发送给若依，由若依通过 MQTT 转给树莓派
+              // 执行下发
               this.executeHardwareCommands(commands);
 
-              // b. 界面优化：从聊天气泡中移除难看的 JSON 源码，只保留自然语言
+              // 界面优化：移除 JSON 源码展示
               assistantMsg.content = fullContent.replace(actionRegex, "").trim();
             } catch (err) {
               console.error("指令解析失败:", err);
             }
+          } else {
+            console.log("纯聊天模式，无需下发硬件指令");
+            // 如果 AI 还是吐出了空的 [ACTION_START][ACTION_END]，也顺手清理掉
+            assistantMsg.content = fullContent.replace(actionRegex, "").trim();
           }
 
-          // 4. 将 AI 的最终自然语言回复存入数据库
+          // 4. 将 AI 的最终回复（纯文字）存入数据库
           request({
             url: "/masterpicar/message/save",
             method: "post",
@@ -260,6 +344,42 @@ export default {
      * 新增方法：发送指令到若依后端
      */
     executeHardwareCommands(commands) {
+
+      // 遍历指令，如果是开启视频，自动更新前端 UI 状态
+      commands.forEach(cmd => {
+        // 1. 处理开启视频
+        if (cmd.action === 'start_video') {
+          this.videoActive = true;
+          this.videoLoading = true;
+          const device = this.deviceList.find(item => item.deviceId === this.currentDeviceId);
+          if (device) {
+            // 注意：这里改用你 Java 后端写的代理地址，解决跨域并统一管理
+            // this.videoStreamUrl = `/dev-api/masterpicar/device/video/stream/${this.currentDeviceId}?t=${Date.now()}`;
+            this.videoStreamUrl = `http://${device.ipAddress}:5001/video_feed?t=${Date.now()}`;
+          }
+        }
+        if (cmd.action === 'stop_video') {
+          this.videoActive = false;
+          this.videoStreamUrl = "";
+        }
+
+        // 2. 处理开启 YOLO 识别（电脑识别模式）
+        if (cmd.action === 'start_yolo') {
+          this.videoActive = true;
+          this.videoLoading = true;
+          // 【关键修改】：这里填你【运行 yolo_server.py 的电脑 IP】
+          // 如果前端和 Python YOLO 在同一台电脑，可以用 localhost，
+          // 如果不在同一台，请填写电脑的具体 IP（如 10.107.93.xxx）
+          const computerIp = "localhost";
+          this.videoStreamUrl = `http://${computerIp}:5001/yolo_feed?t=${Date.now()}`;
+        }
+        // 3. 处理关闭视频/YOLO
+        if (cmd.action === 'stop_video' || cmd.action === 'stop_yolo') {
+          this.videoActive = false;
+          this.videoStreamUrl = "";
+        }
+      });
+
       // 这里调用你准备在若依写的控制接口
       request({
         url: "/masterpicar/device/execute",
@@ -276,7 +396,37 @@ export default {
     scrollBottom() {
       const box = this.$refs.chatBox;
       if (box) box.scrollTop = box.scrollHeight;
+    },
+    /** 切换视频 */
+    toggleVideo() {
+      if (this.videoActive) {
+        // 关闭视频
+        this.videoActive = false;
+        this.videoStreamUrl = "";
+        // 发送关闭指令
+        this.executeHardwareCommands([{type: "function", action: "stop_video"}]);
+      } else {
+        // 打开视频
+        this.videoLoading = true;
+        this.videoActive = true;
+
+        // 构建视频流 URL（直接访问树莓派）
+        const device = this.deviceList.find(item => item.deviceId === this.currentDeviceId);
+        if (device) {
+          this.videoStreamUrl = `http://${device.ipAddress}:5000/video_feed?t=${Date.now()}`;
+        }
+
+        // 发送开启指令
+        this.executeHardwareCommands([{type: "function", action: "start_video"}]);
+      }
+    },
+
+    /** 视频加载错误处理 */
+    onVideoError() {
+      this.videoLoading = false;
+      this.$message.error("视频流连接失败，请检查摄像头");
     }
+
   }
 };
 </script>
@@ -480,5 +630,35 @@ export default {
 .device-select {
   width: 200px;
 }
+
+.video-container {
+  position: relative;
+  width: 100%;
+  max-height: 300px;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.video-stream {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+}
+
+.video-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  background: rgba(0,0,0,0.5);
+}
+
 
 </style>
